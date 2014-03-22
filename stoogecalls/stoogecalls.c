@@ -34,6 +34,7 @@ int get_sigcounter(int signumber)
 	struct sighand_struct *sighand = current->sighand;
 	result =  sighand->sig_counter[signumber];
 	unlock_task_sighand(current, &flags);
-	printk(KERN_ALERT "in get_sig()  signumber = %d, result = %d\n",signumber, result);
+	printk(KERN_ALERT "in get_sig()  current = %x, signumber = %d, result = %d\n",
+	        current, signumber, result);
 	return result;
 }
