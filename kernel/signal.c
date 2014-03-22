@@ -2756,7 +2756,7 @@ SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 	info.si_uid = current_uid();
 	current->sighand->sig_counter[sig]++;
 	printk(KERN_ALERT "in sys_kill, current = %x, signum = %d, counter = %d\n",
-		current, sig, current->sighand->sig_counter[sig]);
+		(unsigned int)current, sig, current->sighand->sig_counter[sig]);
 
 	return kill_something_info(sig, &info, pid);
 }

@@ -35,6 +35,6 @@ int get_sigcounter(int signumber)
 	result =  sighand->sig_counter[signumber];
 	unlock_task_sighand(current, &flags);
 	printk(KERN_ALERT "in get_sig()  current = %x, signumber = %d, result = %d\n",
-	        current, signumber, result);
+	        (unsigned int)current, signumber, result);
 	return result;
 }
