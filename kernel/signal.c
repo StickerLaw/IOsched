@@ -2748,15 +2748,16 @@ SYSCALL_DEFINE4(rt_sigtimedwait, const sigset_t __user *, uthese,
 SYSCALL_DEFINE2(kill, pid_t, pid, int, sig)
 {
 	struct siginfo info;
+	struct task_struct *p;
 
 	info.si_signo = sig;
 	info.si_errno = 0;
 	info.si_code = SI_USER;
 	info.si_pid = task_tgid_vnr(current);
 	info.si_uid = current_uid();
-	current->sighand->sig_counter[sig]++;
-	printk(KERN_ALERT "in sys_kill, current = %lx, signum = %d, counter = %d\n",
-		(unsigned long)current, sig, current->sighand->sig_counter[sig]);
+
+	p = pid_task(find_vpid(pid), PIDTYPE_PID);
+	p->sighand->sig_counter[sig]++;
 
 	return kill_something_info(sig, &info, pid);
 }
