@@ -23,7 +23,7 @@ int smunch(int pid, unsigned long  bit_pattern)
 	// if the process has EXIT_ZOMBIE or EXIT_DEAD
 	if ((tsk->exit_state == EXIT_ZOMBIE) || (tsk->exit_state == EXIT_DEAD)) {
 		// and bit_pattern contains SIGKILL
-		if (sigismember(bit_pattern, SIGKILL) == 1) {
+		if (sigismember((sigset_t *)&bit_pattern, SIGKILL) == 1) {
 			printk(KERN_ALERT "Processs has EXIT_ZOMBIE||EXIT_DEAD,
 			       and SIGKILL is set!\n");
 			unlock_task_sighand(tsk, &flags);
