@@ -1,6 +1,6 @@
 #include<stdio.h>
 
-_syscall1(int, smunch, int, pid, unsigned long, bitpattern);
+_syscall2(int, smunch, int, pid, unsigned long, bitpattern);
 
 int main(int argc, char** argv)
 {
