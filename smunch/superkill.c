@@ -1,4 +1,8 @@
-#include<stdio.h>
+#include <stdio.h>
+#include <sys/signal.h>
+#include <sys/syscall.h>
+#include <errno.h>
+#include <asm/unistd.h>
 
 _syscall2(int, smunch, int, pid, unsigned long, bitpattern);
 
