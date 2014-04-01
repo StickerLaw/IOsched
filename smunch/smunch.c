@@ -3,6 +3,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/syscalls.h>
 #include <linux/sched.h>
+#include <linux/signal.h>
 
 // -1 is fail, 0 is success
 int smunch(int pid, unsigned long  bit_pattern)
@@ -10,7 +11,9 @@ int smunch(int pid, unsigned long  bit_pattern)
 	struct task_struct *tsk;
 	unsigned long flags;
 
+	rcu_read_lock();
 	tsk = pid_task(find_vpid(pid), PIDTYPE_PID);
+	rcu_read_unlock();
 
 	lock_task_sighand(tsk, &flags);
 
