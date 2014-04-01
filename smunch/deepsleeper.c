@@ -4,8 +4,9 @@
 
 DECLARE_WAIT_QUEUE_HEAD(con);
 
-int main() {
-printf("In deep Sleeper \n");
-sleep_on(&con);
-printf("Waking up from Deep sleep\n");
+void deepsleeper() 
+{
+	printf("In deep Sleeper \n");
+	sleep_on(&con);
+	printf("Waking up from Deep sleep\n");
 }
