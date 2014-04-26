@@ -2313,6 +2313,9 @@ static void blk_finish_request(struct request *req, int error)
 	service_time = timespec_sub(tmp, req->start_of_service);
 	wait_time = timespec_sub(req->start_of_service, req->start_of_wait);
 
+	printk(KERN_ALERT "service_time %lu\n", service_time.tv_sec);
+	printk(KERN_ALERT "wait_time %lu\n", wait_time.tv_sec);
+
 	sum_of_services += service_time.tv_sec * 1000 + service_time.tv_nsec / 1000000;
 	sum_of_waits += wait_time.tv_sec * 1000 + wait_time.tv_nsec / 1000000;
 	num_of_requests ++;	
