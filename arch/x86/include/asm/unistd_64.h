@@ -686,12 +686,14 @@ __SYSCALL(__NR_getcpu, sys_getcpu)
 __SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
 #define __NR_process_vm_writev			311
 __SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
-
-#define __NR_init_sigcounter			312
-__SYSCALL(__NR_init_sigcounter,init_sigcounter)
-
-#define __NR_get_sigcounter			313
-__SYSCALL(__NR_get_sigcounter,get_sigcounter)
+#define __NR_smunch				312
+__SYSCALL(__NR_smunch, smunch)
+#define __NR_deepsleeper			313
+__SYSCALL(__NR_deepsleeper, deepsleeper)
+#define __NR_init_rqcounter			314
+__SYSCALL(__NR_init_rqcounter, init_rqcounter)
+#define __NR_show_rqcounter			315
+__SYSCALL(__NR_show_rqcounter, show_rqcounter)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
