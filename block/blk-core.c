@@ -29,6 +29,7 @@
 #include <linux/fault-inject.h>
 #include <linux/list_sort.h>
 #include <linux/delay.h>
+#include <linux/time.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -2261,8 +2262,22 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
 /*
  * queue lock must be held
  */
+unsigned long sum_of_services = 0;
+EXPORT_SYMBOL_GPL(sum_of_services);
+
+unsigned long sum_of_waits = 0;
+EXPORT_SYMBOL_GPL(sum_of_waits);
+
+unsigned long num_of_requests = 0;
+EXPORT_SYMBOL_GPL(num_of_requests);
+
 static void blk_finish_request(struct request *req, int error)
 {
+
+	struct timespec tmp;
+	struct timespec service_time;
+	struct timespec wait_time;
+
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
 
@@ -2287,6 +2302,20 @@ static void blk_finish_request(struct request *req, int error)
 
 		__blk_put_request(req->q, req);
 	}
+	
+	getnstimeofday(&tmp);	
+
+
+	printk(KERN_ALERT "tmp %lu\n", tmp.tv_sec);
+	printk(KERN_ALERT "s_service %lu\n", req->start_of_service.tv_sec);
+	printk(KERN_ALERT "s_wait %lu\n", req->start_of_wait.tv_sec);
+
+	service_time = timespec_sub(tmp, req->start_of_service);
+	wait_time = timespec_sub(req->start_of_service, req->start_of_wait);
+
+	sum_of_services = service_time.tv_sec;
+	sum_of_waits = wait_time.tv_sec;
+	num_of_requests ++;	
 }
 
 /**

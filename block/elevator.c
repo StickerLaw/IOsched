@@ -638,6 +638,7 @@ void elv_quiesce_end(struct request_queue *q)
 
 void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 {
+	getnstimeofday(&rq->start_of_wait);
 	trace_block_rq_insert(q, rq);
 
 	rq->q = q;

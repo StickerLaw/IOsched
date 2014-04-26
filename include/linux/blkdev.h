@@ -172,6 +172,8 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
+	struct timespec start_of_service;
+	struct timespec start_of_wait;
 };
 
 static inline unsigned short req_get_ioprio(struct request *req)
