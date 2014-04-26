@@ -2305,16 +2305,16 @@ static void blk_finish_request(struct request *req, int error)
 	
 	getnstimeofday(&tmp);	
 
-
+/*
 	printk(KERN_ALERT "tmp %lu\n", tmp.tv_sec);
 	printk(KERN_ALERT "s_service %lu\n", req->start_of_service.tv_sec);
 	printk(KERN_ALERT "s_wait %lu\n", req->start_of_wait.tv_sec);
-
+*/
 	service_time = timespec_sub(tmp, req->start_of_service);
 	wait_time = timespec_sub(req->start_of_service, req->start_of_wait);
 
-	sum_of_services = service_time.tv_sec;
-	sum_of_waits = wait_time.tv_sec;
+	sum_of_services += service_time.tv_sec * 1000 + service_time.tv_nsec / 1000000;
+	sum_of_waits += wait_time.tv_sec * 1000 + wait_time.tv_nsec / 1000000;
 	num_of_requests ++;	
 }
 
