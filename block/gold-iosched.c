@@ -108,24 +108,52 @@ static void gold_add_request(struct request_queue *q, struct request *rq)
 	}
 }
 
-/*
+
 static int gold_dispatch(struct request_queue *q, int force)
 {
 	struct gold_data *nd = q->elevator->elevator_data;
+	struct request *rq, *rq1, *rq2;
+	sector_t delta1, delta2;
 
-	if (!list_empty(&nd->sort_queue) || !list_empty(&nd->wait_queue)) {
-		struct request *rq;
-
-		if (nd->dirty >= ALGOT_DIRTY_COUNT)
-			gold_program(q, nd);
-		rq = pick_opt(q, nd);
+	if (list_empty(&nd->bigger) && list_empty(&nd->smaller)) {
+		return 0;
+	}
+	else if (!list_empty(&nd->bigger) && list_empty(&nd->smaller)) {
+		rq = list_entry_rq(&nd->bigger.next);
+		list_del_init(&rq->queuelist);
+		nd->last_sector = rq_end_sector(rq);
 
 		elv_dispatch_sort(q, rq);
 		return 1;
 	}
-	return 0;
-}
+	else if (list_empty(&nd->bigger) && !list_empty(&nd->smaller)) {
+		rq = list_entry_rq(&nd->smaller.next);
+		list_del_init(&rq->queuelist);
+		nd->last_sector = rq_end_sector(rq);
 
+		elv_dispatch_sort(q, rq);
+		return 1;
+	}
+	else {
+		rq1 = list_entry_rq(&nd->smaller.next);
+		rq2 = list_entry_rq(&nd->bigger.next);
+
+		delta1 = abs(nd->last_sector - rq_end_sector(rq1));
+		delta2 = abs(nd->last_sector - rq_end_sector(rq2));
+
+		if ( delta1 < delta2 ) {
+			list_del_init(&rq1->queuelist);
+			nd->last_sector = rq_end_sector(rq1);
+			elv_dispatch_sort(q, rq1);
+		}
+		else {
+			list_del_init(&rq2->queuelist);
+			nd->last_sector = rq_end_sector(rq2);
+			elv_dispatch_sort(q, rq2);
+		}
+	}
+}
+/*
 static struct request *
 gold_former_request(struct request_queue *q, struct request *rq)
 {
