@@ -16,7 +16,7 @@ struct gold_data {
 	sector_t last_sector;
 };
 
-
+/*
 static inline void gold_sort_in(struct gold_data *nd, struct request *rq)
 {
 	sector_t pos;
@@ -51,42 +51,80 @@ static void gold_merged_requests(struct request_queue *q, struct request *rq,
 	}
 	list_del_init(&next->queuelist);
 }
-
+*/
 static void gold_add_request(struct request_queue *q, struct request *rq)
 {
 	struct gold_data *nd = q->elevator->elevator_data;
+	struct request *big, *small, *req;
+	sector_t pos, pos1, pos2;
 
-	while (!list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
-	{
-		struct request *req = list_entry_rq(nd->wait_queue.next);
-		list_del_init(&req->queuelist);
-		gold_sort_in(nd, req);
+	if (list_empty(&nd->bigger) && list_empty(&nd->smaller)) {
+		list_add_tail(&rq->queuelist, &nd->bigger);
 	}
+	else if (!list_empty(&nd->bigger) && list_empty(&nd->smaller)) {
 
-	if (list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
-		gold_sort_in(nd, rq);
-	else
-	{
-		rq->elevator_private[0] = ALGOT_PRI0_UNSORTED;
-		list_add_tail(&rq->queuelist, &nd->wait_queue);
+		// get the first element of bigger queue.
+		big = list_entry_rq(nd->bigger.next);
+		pos = blk_rq_pos(rq);
+		pos1 = blk_rq_pos(big);
+
+		// if rq is bigger than the first element of 'bigger' queue
+		if ( pos > pos1) {
+			list_for_each_entry(req, &nd->bigger, queuelist) {
+				if (blk_rq_pos(req) > pos)
+					break;
+			}
+			list_add_tail(&rq->queuelist, &req->queuelist);
+		}
+		else {
+			// else insert to the smaller queue
+			list_add_tail(&rq->queuelist, &nd->smaller);
+		}
+	}
+	else if (list_empty(&nd->bigger) && !list_empty(&nd->smaller)) {
+
+		small = list_entry_rq(nd->smaller.next);
+
+		pos = blk_rq_pos(rq);
+		pos2 = blk_rq_pos(small);
+
+		if (pos < pos2) {
+			list_for_each_entry(req, &nd->smaller, queuelist) {
+				if (blk_rq_pos(req) < pos)
+					break;
+			}
+			list_add_tail(&rq->queuelist, &req->queuelist);
+		}
+		else {
+			list_add_tail(&rq->queuelist, &nd->bigger);
+		}
+	}
+	else {
+		big = list_entry_rq(nd->bigger.next);
+		small = list_entry_rq(nd->smaller.next);
+
+		pos1 = blk_rq_pos(big);
+		pos2 = blk_rq_pos(small);
+		pos = blk_rq_pos(rq);
+
+		if ( pos > pos1 ) {
+			list_for_each_entry(req, &nd->smaller, queuelist) {
+				if (blk_rq_pos(req) > pos)
+					break;
+			}
+			list_add_tail(&rq->queuelist, &req->queuelist);
+		}
+		else {
+			list_for_each_entry(req, &nd->smaller, queuelist) {
+				if (blk_rq_pos(req) < pos)
+					break;
+			}
+			list_add_tail(&rq->queuelist, &req->queuelist);
+		}
 	}
 }
 
-#define MIN(a,b) (a<b)?a:b
-#define MATRIX(matrix, width, i, j)  (matrix[(i)*(width) + (j)])
-
-static inline sector_t
-sect_dist(struct request **sorted, unsigned long i, unsigned long j)
-{
-	if (sorted[j] == NULL)
-	{
-		printk(KERN_ALERT "%lu %lu\n", i, j);
-	}
-	return abs(blk_rq_pos(sorted[i])-blk_rq_pos(sorted[j]));
-}
-
-
-
+/*
 static int gold_dispatch(struct request_queue *q, int force)
 {
 	struct gold_data *nd = q->elevator->elevator_data;
@@ -123,6 +161,7 @@ gold_latter_request(struct request_queue *q, struct request *rq)
 		return NULL;
 	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
+*/
 
 static void *gold_init_queue(struct request_queue *q)
 {
@@ -135,8 +174,8 @@ static void *gold_init_queue(struct request_queue *q)
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&nd->wait_queue);
-	INIT_LIST_HEAD(&nd->sort_queue);
+	INIT_LIST_HEAD(&nd->bigger);
+	INIT_LIST_HEAD(&nd->smaller);
 
 	nd->last_sector = 0;
 
@@ -152,11 +191,11 @@ static void gold_exit_queue(struct elevator_queue *e)
 
 static struct elevator_type elevator_gold = {
 	.ops = {
-		.elevator_merge_req_fn		= gold_merged_requests,
-		.elevator_dispatch_fn		= gold_dispatch,
+	//	.elevator_merge_req_fn		= gold_merged_requests,
+//		.elevator_dispatch_fn		= gold_dispatch,
 		.elevator_add_req_fn		= gold_add_request,
-		.elevator_former_req_fn		= gold_former_request,
-		.elevator_latter_req_fn		= gold_latter_request,
+//		.elevator_former_req_fn		= gold_former_request,
+//		.elevator_latter_req_fn		= gold_latter_request,
 		.elevator_init_fn		= gold_init_queue,
 		.elevator_exit_fn		= gold_exit_queue,
 	},
@@ -180,6 +219,6 @@ module_init(gold_init);
 module_exit(gold_exit);
 
 
-MODULE_AUTHOR("Xia Yang, Navin Soni, Neeraj Jain, Yuefeng Zhou, Yingxia Chen");
+MODULE_AUTHOR("Runzhen Wang");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("AlgoT IO scheduler");
+MODULE_DESCRIPTION("GOLD IO scheduler");
