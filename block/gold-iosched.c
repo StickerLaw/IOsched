@@ -1,4 +1,3 @@
-
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/bio.h>
@@ -7,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/printk.h>
-
 
 struct gold_data {
 	struct list_head bigger;
@@ -119,7 +117,7 @@ static int gold_dispatch(struct request_queue *q, int force)
 		return 0;
 	}
 	else if (!list_empty(&nd->bigger) && list_empty(&nd->smaller)) {
-		rq = list_entry_rq(&nd->bigger.next);
+		rq = list_entry_rq(nd->bigger.next);
 		list_del_init(&rq->queuelist);
 		nd->last_sector = rq_end_sector(rq);
 
@@ -127,7 +125,7 @@ static int gold_dispatch(struct request_queue *q, int force)
 		return 1;
 	}
 	else if (list_empty(&nd->bigger) && !list_empty(&nd->smaller)) {
-		rq = list_entry_rq(&nd->smaller.next);
+		rq = list_entry_rq(nd->smaller.next);
 		list_del_init(&rq->queuelist);
 		nd->last_sector = rq_end_sector(rq);
 
@@ -135,8 +133,8 @@ static int gold_dispatch(struct request_queue *q, int force)
 		return 1;
 	}
 	else {
-		rq1 = list_entry_rq(&nd->smaller.next);
-		rq2 = list_entry_rq(&nd->bigger.next);
+		rq1 = list_entry_rq(nd->smaller.next);
+		rq2 = list_entry_rq(nd->bigger.next);
 
 		delta1 = abs(nd->last_sector - rq_end_sector(rq1));
 		delta2 = abs(nd->last_sector - rq_end_sector(rq2));
@@ -151,17 +149,18 @@ static int gold_dispatch(struct request_queue *q, int force)
 			nd->last_sector = rq_end_sector(rq2);
 			elv_dispatch_sort(q, rq2);
 		}
+		return 1;
 	}
 }
-/*
+
 static struct request *
 gold_former_request(struct request_queue *q, struct request *rq)
 {
 	struct gold_data *nd = q->elevator->elevator_data;
 
-	if (rq->queuelist.prev == &nd->sort_queue || rq->queuelist.prev == &nd->wait_queue)
+	if (rq->queuelist.prev == &nd->bigger || rq->queuelist.prev == &nd->smaller)
 		return NULL;
-	return list_entry(rq->queuelist.prev, struct request, queuelist);
+	return list_entry_rq(rq->queuelist.prev);
 }
 
 static struct request *
@@ -169,11 +168,11 @@ gold_latter_request(struct request_queue *q, struct request *rq)
 {
 	struct gold_data *nd = q->elevator->elevator_data;
 
-	if (rq->queuelist.next == &nd->sort_queue || rq->queuelist.next == &nd->wait_queue)
+	if (rq->queuelist.next == &nd->bigger || rq->queuelist.next == &nd->smaller)
 		return NULL;
-	return list_entry(rq->queuelist.next, struct request, queuelist);
+	return list_entry_rq(rq->queuelist.next);
 }
-*/
+
 
 static void *gold_init_queue(struct request_queue *q)
 {
@@ -204,10 +203,10 @@ static void gold_exit_queue(struct elevator_queue *e)
 static struct elevator_type elevator_gold = {
 	.ops = {
 	//	.elevator_merge_req_fn		= gold_merged_requests,
-//		.elevator_dispatch_fn		= gold_dispatch,
+		.elevator_dispatch_fn		= gold_dispatch,
 		.elevator_add_req_fn		= gold_add_request,
-//		.elevator_former_req_fn		= gold_former_request,
-//		.elevator_latter_req_fn		= gold_latter_request,
+		.elevator_former_req_fn		= gold_former_request,
+		.elevator_latter_req_fn		= gold_latter_request,
 		.elevator_init_fn		= gold_init_queue,
 		.elevator_exit_fn		= gold_exit_queue,
 	},
