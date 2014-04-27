@@ -17,22 +17,6 @@ struct gold_data {
 };
 
 /*
-static inline void gold_sort_in(struct gold_data *nd, struct request *rq)
-{
-	sector_t pos;
-	struct request *req;
-
-	rq->elevator_private[0] = ALGOT_PRI0_SORTED;
-	pos = blk_rq_pos(rq);
-	list_for_each_entry(req, &nd->sort_queue, queuelist)
-	{
-		if (blk_rq_pos(req) > pos)
-			break;
-	}
-	list_add_tail(&rq->queuelist, &req->queuelist);
-	nd->nsorted += 1;
-	nd->dirty += 1;
-}
 
 static void gold_merged_requests(struct request_queue *q, struct request *rq,
 				 struct request *next)
