@@ -9,77 +9,67 @@
 #include <linux/printk.h>
 
 
-struct algot_data {
-    struct list_head wait_queue;
-    struct list_head sort_queue;
+struct gold_data {
+	struct list_head bigger;
+	struct list_head smaller;
 
-    struct request **sorted;// reference array sorted in c-scan order
-    sector_t *cost_matrix;  // algot computation matrix
-
-    sector_t rw_head;
-    unsigned int nsorted;   // number of requests in sort_queue
-    unsigned int opt_s;     // current start index
-    unsigned int opt_e;     // current end index
-    unsigned int opt_ns;    // current table width for subscription
-
-    int  dirty;             // dirty flag for cost_matrix & sorted
-    bool vloc;              // vmalloc flag for cost_matrix
+	sector_t last_sector;
 };
 
 
-static inline void algot_sort_in(struct algot_data *nd, struct request *rq)
+static inline void gold_sort_in(struct gold_data *nd, struct request *rq)
 {
-    sector_t pos;
-    struct request *req;
+	sector_t pos;
+	struct request *req;
 
-    rq->elevator_private[0] = ALGOT_PRI0_SORTED;
-    pos = blk_rq_pos(rq);
-    list_for_each_entry(req, &nd->sort_queue, queuelist)
-    {
-        if (blk_rq_pos(req) > pos)
-            break;
-    }
-    list_add_tail(&rq->queuelist, &req->queuelist);
-    nd->nsorted += 1;
-    nd->dirty += 1;
+	rq->elevator_private[0] = ALGOT_PRI0_SORTED;
+	pos = blk_rq_pos(rq);
+	list_for_each_entry(req, &nd->sort_queue, queuelist)
+	{
+		if (blk_rq_pos(req) > pos)
+			break;
+	}
+	list_add_tail(&rq->queuelist, &req->queuelist);
+	nd->nsorted += 1;
+	nd->dirty += 1;
 }
 
-static void algot_merged_requests(struct request_queue *q, struct request *rq,
-                 struct request *next)
+static void gold_merged_requests(struct request_queue *q, struct request *rq,
+				 struct request *next)
 {
-    void* ref = next->elevator_private[0];
-    if (ref != ALGOT_PRI0_UNSORTED)
-    {
-        struct algot_data* nd = q->elevator->elevator_data;
-        nd->nsorted -= 1;
+	void* ref = next->elevator_private[0];
+	if (ref != ALGOT_PRI0_UNSORTED)
+	{
+		struct gold_data* nd = q->elevator->elevator_data;
+		nd->nsorted -= 1;
 
-        if (ref != ALGOT_PRI0_SORTED)
-        {
-            BUG_ON((uintptr_t)ref > ALGOT_CALC_MAX);
-            nd->sorted[(uintptr_t)ref] = ALGOT_REF_MERGED;
-        }
-    }
-    list_del_init(&next->queuelist);
+		if (ref != ALGOT_PRI0_SORTED)
+		{
+			BUG_ON((uintptr_t)ref > ALGOT_CALC_MAX);
+			nd->sorted[(uintptr_t)ref] = ALGOT_REF_MERGED;
+		}
+	}
+	list_del_init(&next->queuelist);
 }
 
-static void algot_add_request(struct request_queue *q, struct request *rq)
+static void gold_add_request(struct request_queue *q, struct request *rq)
 {
-    struct algot_data *nd = q->elevator->elevator_data;
+	struct gold_data *nd = q->elevator->elevator_data;
 
-    while (!list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
-    {
-        struct request *req = list_entry_rq(nd->wait_queue.next);
-        list_del_init(&req->queuelist);
-        algot_sort_in(nd, req);
-    }
+	while (!list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
+	{
+		struct request *req = list_entry_rq(nd->wait_queue.next);
+		list_del_init(&req->queuelist);
+		gold_sort_in(nd, req);
+	}
 
-    if (list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
-        algot_sort_in(nd, rq);
-    else
-    {
-        rq->elevator_private[0] = ALGOT_PRI0_UNSORTED;
-        list_add_tail(&rq->queuelist, &nd->wait_queue);
-    }
+	if (list_empty(&nd->wait_queue) && nd->nsorted < ALGOT_CALC_MAX)
+		gold_sort_in(nd, rq);
+	else
+	{
+		rq->elevator_private[0] = ALGOT_PRI0_UNSORTED;
+		list_add_tail(&rq->queuelist, &nd->wait_queue);
+	}
 }
 
 #define MIN(a,b) (a<b)?a:b
@@ -88,123 +78,106 @@ static void algot_add_request(struct request_queue *q, struct request *rq)
 static inline sector_t
 sect_dist(struct request **sorted, unsigned long i, unsigned long j)
 {
-    if (sorted[j] == NULL)
-    {
-        printk(KERN_ALERT "%lu %lu\n", i, j);
-    }
-    return abs(blk_rq_pos(sorted[i])-blk_rq_pos(sorted[j]));
+	if (sorted[j] == NULL)
+	{
+		printk(KERN_ALERT "%lu %lu\n", i, j);
+	}
+	return abs(blk_rq_pos(sorted[i])-blk_rq_pos(sorted[j]));
 }
 
 
 
-static int algot_dispatch(struct request_queue *q, int force)
+static int gold_dispatch(struct request_queue *q, int force)
 {
-    struct algot_data *nd = q->elevator->elevator_data;
+	struct gold_data *nd = q->elevator->elevator_data;
 
-    if (!list_empty(&nd->sort_queue) || !list_empty(&nd->wait_queue)) {
-        struct request *rq;
+	if (!list_empty(&nd->sort_queue) || !list_empty(&nd->wait_queue)) {
+		struct request *rq;
 
-        if (nd->dirty >= ALGOT_DIRTY_COUNT)
-            algot_program(q, nd);
-        rq = pick_opt(q, nd);
+		if (nd->dirty >= ALGOT_DIRTY_COUNT)
+			gold_program(q, nd);
+		rq = pick_opt(q, nd);
 
-        elv_dispatch_sort(q, rq);
-        return 1;
-    }
-    return 0;
+		elv_dispatch_sort(q, rq);
+		return 1;
+	}
+	return 0;
 }
 
 static struct request *
-algot_former_request(struct request_queue *q, struct request *rq)
+gold_former_request(struct request_queue *q, struct request *rq)
 {
-    struct algot_data *nd = q->elevator->elevator_data;
+	struct gold_data *nd = q->elevator->elevator_data;
 
-    if (rq->queuelist.prev == &nd->sort_queue || rq->queuelist.prev == &nd->wait_queue)
-        return NULL;
-    return list_entry(rq->queuelist.prev, struct request, queuelist);
+	if (rq->queuelist.prev == &nd->sort_queue || rq->queuelist.prev == &nd->wait_queue)
+		return NULL;
+	return list_entry(rq->queuelist.prev, struct request, queuelist);
 }
 
 static struct request *
-algot_latter_request(struct request_queue *q, struct request *rq)
+gold_latter_request(struct request_queue *q, struct request *rq)
 {
-    struct algot_data *nd = q->elevator->elevator_data;
+	struct gold_data *nd = q->elevator->elevator_data;
 
-    if (rq->queuelist.next == &nd->sort_queue || rq->queuelist.next == &nd->wait_queue)
-        return NULL;
-    return list_entry(rq->queuelist.next, struct request, queuelist);
+	if (rq->queuelist.next == &nd->sort_queue || rq->queuelist.next == &nd->wait_queue)
+		return NULL;
+	return list_entry(rq->queuelist.next, struct request, queuelist);
 }
 
-static void *algot_init_queue(struct request_queue *q)
+static void *gold_init_queue(struct request_queue *q)
 {
-    struct algot_data *nd;
-    unsigned long ms = ALGOT_CALC_MAX;
+	struct gold_data *nd;
 
-    nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
-    nd->nsorted = 0;
-    nd->rw_head = 0;
-    nd->dirty = ALGOT_DIRTY_COUNT-1;
-    INIT_LIST_HEAD(&nd->wait_queue);
-    INIT_LIST_HEAD(&nd->sort_queue);
+	nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
 
-    nd->vloc = false;
-    nd->cost_matrix = kmalloc_node(sizeof(sector_t)*ms*ms, GFP_KERNEL, q->node);
-    if (nd->cost_matrix == NULL)
-    {
-        nd->cost_matrix = vmalloc_node(sizeof(sector_t)*ms*ms, q->node);
-        nd->vloc = true;
-    }
-    nd->sorted = kmalloc_node(sizeof(void*)*ms, GFP_KERNEL, q->node);
+	if (!nd) {
+		printk(KERN_ALERT "failed to allocate memory for gold\n");
+		return NULL;
+	}
 
-    if (!nd || !nd->sorted || !nd->cost_matrix)
-    {
-        printk(KERN_ALERT "failed to allocate memory for algot\n");
-        return NULL;
-    }
+	INIT_LIST_HEAD(&nd->wait_queue);
+	INIT_LIST_HEAD(&nd->sort_queue);
 
-    return nd;
+	nd->last_sector = 0;
+
+	return nd;
 }
 
-static void algot_exit_queue(struct elevator_queue *e)
+static void gold_exit_queue(struct elevator_queue *e)
 {
-    struct algot_data *nd = e->elevator_data;
+	struct gold_data *nd = e->elevator_data;
 
-    BUG_ON(!list_empty(&nd->sort_queue));
-    if (nd->vloc)
-        vfree(nd->cost_matrix);
-    else
-        kfree(nd->cost_matrix);
-    kfree(nd->sorted);
-    kfree(nd);
+	kfree(nd);
 }
 
-static struct elevator_type elevator_algot = {
-    .ops = {
-        .elevator_merge_req_fn        = algot_merged_requests,
-        .elevator_dispatch_fn        = algot_dispatch,
-        .elevator_add_req_fn        = algot_add_request,
-        .elevator_former_req_fn        = algot_former_request,
-        .elevator_latter_req_fn        = algot_latter_request,
-        .elevator_init_fn        = algot_init_queue,
-        .elevator_exit_fn        = algot_exit_queue,
-    },
-    .elevator_name = "algot",
-    .elevator_owner = THIS_MODULE,
+static struct elevator_type elevator_gold = {
+	.ops = {
+		.elevator_merge_req_fn		= gold_merged_requests,
+		.elevator_dispatch_fn		= gold_dispatch,
+		.elevator_add_req_fn		= gold_add_request,
+		.elevator_former_req_fn		= gold_former_request,
+		.elevator_latter_req_fn		= gold_latter_request,
+		.elevator_init_fn		= gold_init_queue,
+		.elevator_exit_fn		= gold_exit_queue,
+	},
+	.elevator_name = "gold",
+	.elevator_owner = THIS_MODULE,
 };
 
-static int __init algot_init(void)
+static int __init gold_init(void)
 {
-    elv_register(&elevator_algot);
+	elv_register(&elevator_gold);
 
-    return 0;
+	return 0;
 }
 
-static void __exit algot_exit(void)
+static void __exit gold_exit(void)
 {
-    elv_unregister(&elevator_algot);
+	elv_unregister(&elevator_gold);
 }
 
-module_init(algot_init);
-module_exit(algot_exit);
+module_init(gold_init);
+module_exit(gold_exit);
 
 
 MODULE_AUTHOR("Xia Yang, Navin Soni, Neeraj Jain, Yuefeng Zhou, Yingxia Chen");
