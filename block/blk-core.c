@@ -36,6 +36,20 @@
 
 #include "blk.h"
 
+//Yaolin Zhang's code here
+#include <linux/blkdev.h>
+
+int first_time = 0;
+int start_measurement = 0; //Default to not start measurement
+unsigned long number_of_request;
+struct sche_stat_data sstf_stat_data[25000];
+
+EXPORT_SYMBOL(first_time);
+EXPORT_SYMBOL(start_measurement);
+EXPORT_SYMBOL(number_of_request);
+EXPORT_SYMBOL(sstf_stat_data);
+//End of Yaolin Zhang's code
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
@@ -2262,22 +2276,9 @@ EXPORT_SYMBOL_GPL(blk_unprep_request);
 /*
  * queue lock must be held
  */
-unsigned long sum_of_services = 0;
-EXPORT_SYMBOL_GPL(sum_of_services);
-
-unsigned long sum_of_waits = 0;
-EXPORT_SYMBOL_GPL(sum_of_waits);
-
-unsigned long num_of_requests = 0;
-EXPORT_SYMBOL_GPL(num_of_requests);
-
 static void blk_finish_request(struct request *req, int error)
 {
-
-	struct timespec tmp;
-	struct timespec service_time;
-	struct timespec wait_time;
-
+	struct timespec now;
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
 
@@ -2302,23 +2303,25 @@ static void blk_finish_request(struct request *req, int error)
 
 		__blk_put_request(req->q, req);
 	}
-	
-	getnstimeofday(&tmp);	
-
-/*
-	printk(KERN_ALERT "tmp %lu\n", tmp.tv_sec);
-	printk(KERN_ALERT "s_service %lu\n", req->start_of_service.tv_sec);
-	printk(KERN_ALERT "s_wait %lu\n", req->start_of_wait.tv_sec);
-*/
-	service_time = timespec_sub(tmp, req->start_of_service);
-	wait_time = timespec_sub(req->start_of_service, req->start_of_wait);
-
-	printk(KERN_ALERT "service_time %lu\n", service_time.tv_sec);
-	printk(KERN_ALERT "wait_time %lu\n", wait_time.tv_sec);
-
-	sum_of_services += service_time.tv_sec * 1000 + service_time.tv_nsec / 1000000;
-	sum_of_waits += wait_time.tv_sec * 1000 + wait_time.tv_nsec / 1000000;
-	num_of_requests ++;	
+	//Yaolin Zhang's code here
+	++number_of_request;
+	if(number_of_request == 500 && first_time == 0){
+		number_of_request = 0;
+		start_measurement = 1;
+		first_time = 1;
+	}
+	if(number_of_request == 20000){
+		printk(KERN_ALERT "Number of request goes to 20000, stop workload!!!!\n");
+		start_measurement = 0;
+	}
+	if(start_measurement == 1){
+		sstf_stat_data[number_of_request].start_of_wait = req -> start_of_wait;
+		sstf_stat_data[number_of_request].start_of_service = req -> start_of_service;
+		getnstimeofday(&now);
+		sstf_stat_data[number_of_request].end_of_service = now;
+		sstf_stat_data[number_of_request].pid = req -> pid;
+	}
+	//End of Yaolin Zhang's code
 }
 
 /**
