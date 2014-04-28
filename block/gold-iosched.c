@@ -181,7 +181,7 @@ static void *gold_init_queue(struct request_queue *q)
 	nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
 
 	if (!nd) {
-		printk(KERN_ALERT "failed to allocate memory for gold\n");
+		printk(KERN_ALERT "Failed to allocate memory.\n");
 		return NULL;
 	}
 
@@ -230,6 +230,6 @@ module_init(gold_init);
 module_exit(gold_exit);
 
 
-MODULE_AUTHOR("Runzhen Wang");
+MODULE_AUTHOR("Runzhen Wang, Yaolin Zhang, Guangyan Wang, Shuai Wei, Xi Li");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GOLD IO scheduler");
