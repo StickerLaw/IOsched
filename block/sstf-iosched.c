@@ -1,9 +1,6 @@
 /*
- * CPSC822  PROJECT 3
- *
- *     IO Scheduler 
- *
- *      Team GOLD
+ * 
+ *    SSTF IO Scheduler 
  *
  */
 
@@ -239,6 +236,6 @@ module_init(sstf_init);
 module_exit(sstf_exit);
 
 
-MODULE_AUTHOR("Runzhen Wang, Yaolin Zhang, Guangyan Wang, Shuai Wei, Xi Li");
+MODULE_AUTHOR("Runzhen Wang");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SSTF IO scheduler");
